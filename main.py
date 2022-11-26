@@ -8,6 +8,9 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <meta charset="UTF-8">
+<head>
+  <title>Proyecto de Redes</title>
+</head>
 <body>
     <h1>Arquitectura y Seguridad de Redes</h1>
     <h3>Proyecto HTTP Server</h3>
