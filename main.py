@@ -1,5 +1,5 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
-
+import time
 
 HOST = "192.168.68.114"
 PORT = 9999
@@ -33,6 +33,19 @@ class RedesHttpServer(BaseHTTPRequestHandler):
         self.send_header("Content-type","text/html")
         self.end_headers()
         self.wfile.write(bytes(HTML_TEMPLATE.format(self.path), "UTF-8"))
+    
+    def do_POST(self):
+        response="""
+        ["date": {},
+        "request": {}
+        ]
+        """
+        self.send_response(200)
+        self.send_header("Content-type","application/json")
+        self.end_headers()
+        date = time.strftime("%Y - %m - %d %H:%M:%S",time.localtime(time.time()))
+        self.wfile.write(bytes(response.format(date,self.path), "UTF-8"))
+
 
 if __name__ == "__main__":   
     server = HTTPServer((HOST, PORT),RedesHttpServer)
