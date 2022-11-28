@@ -14,8 +14,7 @@ HTML_TEMPLATE = """
 <body>
     <h1>Arquitectura y Seguridad de Redes</h1>
     <h3>Proyecto HTTP Server</h3>
-     
-    
+    <p>Solicita: {}</p>
     <header>
         <h1>Integrantes</h1>
         <h4>Daniel Ulloa</h4>
@@ -33,11 +32,14 @@ class RedesHttpServer(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type","text/html")
         self.end_headers()
+        self.wfile.write(bytes(HTML_TEMPLATE.format(self.path), "UTF-8"))
 
-        self.wfile.write(bytes(HTML_TEMPLATE, "UTF-8"))
-
-
-server = HTTPServer((HOST, PORT),RedesHttpServer)
-print("Running server...")
-server.serve_forever()
-server.server_close()
+if __name__ == "__main__":   
+    server = HTTPServer((HOST, PORT),RedesHttpServer)
+    try:
+        print("Running server...")
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    server.server_close()
+    print("Server stopped.")
