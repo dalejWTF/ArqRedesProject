@@ -1,58 +1,89 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import time
+import hashlib
+import rsa
 
-HOST = "192.168.68.114"
-PORT = 9999
-HTML_TEMPLATE = """
+# Generate the RSA keys
+(public_key, private_key) = rsa.newkeys(2048)
 
-<!DOCTYPE html>
-<html>
-<meta charset="UTF-8">
-<head>
-  <title>Proyecto de Redes</title>
-</head>
-<body>
-    <h1>Arquitectura y Seguridad de Redes</h1>
-    <h3>Proyecto HTTP Server</h3>
-    <p>Solicita: {}</p>
-    <header>
-        <h1>Integrantes</h1>
-        <h4>Daniel Ulloa</h4>
-        <h4>José Romero</h4>
-        <h4>Roberto </h4> 
-    </header>
+# Save the private key
+with open("private.pem", "wb") as f:
+    f.write(private_key.save_pkcs1())
+
+# Save the public key
+with open("public.pem", "wb") as f:
+    f.write(public_key.save_pkcs1())
+
+# The secret password
+password = "test"
+
+# The user identifier
+user_id = "test"
+
+# Create the plaintext string
+plaintext = user_id + password
+#######
+#UNO SIN ENCRIPTAR PARA VER EN WIRESHARK Y OTRO ENCRIPTADO
+######
+# Create the hash object
+hash_object = hashlib.sha256()
+
+# Update the hash object with the plaintext string
+hash_object.update(plaintext.encode())
+
+# Get the hexadecimal representation of the hash
+secret_key = hash_object.hexdigest()
+class RequestHandler(BaseHTTPRequestHandler):
     
-</body>
-</html>
-
-"""
-class RedesHttpServer(BaseHTTPRequestHandler):
-
     def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type","text/html")
-        self.end_headers()
-        self.wfile.write(bytes(HTML_TEMPLATE.format(self.path), "UTF-8"))
-    
-    def do_POST(self):
-        response="""
-        ["date": {},
-        "request": {}
-        ]
-        """
-        self.send_response(200)
-        self.send_header("Content-type","application/json")
-        self.end_headers()
-        date = time.strftime("%Y - %m - %d %H:%M:%S",time.localtime(time.time()))
-        self.wfile.write(bytes(response.format(date,self.path), "UTF-8"))
+        # Autenticación
+        noencrypt=user_id+password
+        if self.headers.get("Authorization") != noencrypt:
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="Secure Area"')
+            data = b'Autenticacion no coincidente! '
+            self.wfile.write(data)
+            self.end_headers()
+            return
+
+        # Desencriptar el cuerpo de la petición utilizando RSA
+        private_key = rsa.PrivateKey.load_pkcs1(open("private.pem", "rb").read())
+        ciphertext = self.headers.get("X-Encrypted-Data")
+        try:
+            plaintext = rsa.decrypt(bytes.fromhex(ciphertext), private_key)
+            print(plaintext)
+            # Verificar la suma de verificación
+            checksum = self.headers.get("X-Checksum")
+            if hashlib.sha256(plaintext).hexdigest() != checksum:
+                #MANDAR MENSAJE DE QUE NO COINCIDE
+                self.send_response(400)
+                data = b'Checksum no coincidente! '
+                self.wfile.write(data)
+                self.end_headers()
+                return
+
+            # Enviar respuesta
+            self.send_response(200)
+            #MANDAR MENSAJE DE QUE SI COINCIDE
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            data =  b'Peticion recibida exitosamente!'
+            self.wfile.write(data)
+        except rsa.pkcs1.DecryptionError:
+            self.send_response(400)
+            data = b'RSA no coincidente! '
+
+            self.wfile.write(data)
+            self.end_headers()
+            return
 
 
 if __name__ == "__main__":   
-    server = HTTPServer((HOST, PORT),RedesHttpServer)
+    httpd = HTTPServer(("172.17.163.57", 8000), RequestHandler)
     try:
         print("Running server...")
-        server.serve_forever()
+        httpd.serve_forever()
     except KeyboardInterrupt:
         pass
-    server.server_close()
+    httpd.server_close()
     print("Server stopped.")
+
